@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Buffer } from 'buffer';
 
+const UTF8 = 'utf8';
 const SCHEME = 'char-utils';
 let counter = 0;
 const pathToContent = new Map<string, string[]>();
@@ -14,8 +15,8 @@ function hex(n: number, minWidth = 0) {
 }
 
 
-function getDocText(doc: vscode.TextDocument, range: vscode.Range): string {
-	let text = doc.getText(range);
+function getDocText(doc: vscode.TextDocument, range: vscode.Range, maxLength?: number): string {
+	let text = doc.getText(range).slice(0, maxLength);
 	if (doc.eol === vscode.EndOfLine.CRLF) {
 		if (text.match(/\r(?!\n)|(?<!\r)\n/)) {
 			throw Error('File contains broken CRLF pairs');
@@ -31,24 +32,44 @@ function getOffsets(doc: vscode.TextDocument, pos: vscode.Position): Offsets {
 	const text = getDocText(doc, new vscode.Range(new vscode.Position(0, 0), pos));
 	const eolAdjustment = doc.eol === vscode.EndOfLine.CRLF ? pos.line : 0;
 	return {
-		byte: Buffer.from(text, 'utf8').length + eolAdjustment,
+		byte: Buffer.from(text, UTF8).length + eolAdjustment,
 		char: [...text].length,
 	};
+}
+
+function advancePosition(pos: vscode.Position, doc: vscode.TextDocument, count = 1): vscode.Position | null {
+	let { line: lineNum, character: colNum } = pos;
+	let line = doc.lineAt(lineNum).text;
+	for (let i = 0; i < count; i++) {
+		if (colNum >= line.length) {
+			lineNum++;
+			colNum = 0;
+			try {
+				line = doc.lineAt(lineNum).text;
+			} catch (_) {
+				return null;
+			}
+		} else {
+			const charCode = line.charCodeAt(colNum);
+			if (0xd800 <= charCode && charCode < 0xdc00) {
+				// The code point is represented as a Unicode surrogate pair.
+				colNum += 2;
+			} else {
+				colNum++;
+			}
+		}
+	}
+	return new vscode.Position(lineNum, colNum);
 }
 
 async function showCharInfo(editor: vscode.TextEditor, _edit: vscode.TextEditorEdit) {
 	const doc = editor.document;
 	let range = editor.selection.with();
 	if (range.isEmpty) {
-		// Expand the range to include a single character.  The case where the
-		// cursor is at the end of the line is a little tricky.
-		let end = doc.validatePosition(range.start.translate(0, 1));
-		if (end.isEqual(range.start)) {
-			end = new vscode.Position(end.line + 1, 0);
-		}
-		range = range.with({ end });
+		// Expand the range to include a single character.
+		range = range.with({ end: advancePosition(range.start, doc)! });
 	}
-	const text = getDocText(doc, range).slice(0, 1000);
+	const text = getDocText(doc, range, 1000);
 	const content: string[] = [
 		`URI:  ${doc.uri}`,
 		`Name: ${doc.fileName}`,
@@ -61,7 +82,7 @@ async function showCharInfo(editor: vscode.TextEditor, _edit: vscode.TextEditorE
 			? '\r\n'
 			: logicalChar;
 		const codePoint = logicalChar.codePointAt(0)!;
-		const utf8 = [...Buffer.from(physicalChars, 'utf8')];
+		const utf8 = [...Buffer.from(physicalChars, UTF8)];
 		const charCodes = [];
 		for (let i = 0; i < logicalChar.length; i++) {
 			charCodes.push(logicalChar.charCodeAt(i));
@@ -96,6 +117,131 @@ async function showCharInfo(editor: vscode.TextEditor, _edit: vscode.TextEditorE
 	});
 }
 
+// TODO: Use iter... functions.
+export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
+	let [targetOffset] = args;
+	if (typeof targetOffset != 'number') {
+		const input = await vscode.window.showInputBox({
+			prompt: 'Enter character offset.'
+		});
+		targetOffset = Number.parseInt(input!);
+	}
+	const doc = editor.document;
+	let lineNum = 0;
+	let lineStartOffset = 0;
+	while (true) {
+		const line = doc.lineAt(lineNum).text;
+		const lineEndOffset = lineStartOffset + [...line].length;
+		if (lineEndOffset >= targetOffset) {
+			const realColumn = targetOffset - lineStartOffset;
+			let adjustedColumn = 0;
+			let charCounter = 0;
+			for (const char of line) {
+				if (charCounter >= realColumn) break;
+				adjustedColumn += char.length;
+				++charCounter;
+			}
+			const pos = new vscode.Position(lineNum, adjustedColumn);
+			editor.selection = new vscode.Selection(pos, pos);
+			break;
+		}
+		lineStartOffset = lineEndOffset + 1;
+		++lineNum;
+	}
+}
+
+type LineInfo = { text: string, pos: vscode.Position, byteOffset: number, charOffset: number };
+type CharInfo = { char: string, pos: vscode.Position, byteOffset: number, charOffset: number };
+
+export function* iterLineStartPositions(doc: vscode.TextDocument): Generator<LineInfo> {
+	const lineEndBytes = doc.eol === vscode.EndOfLine.CRLF ? 2 : 1;
+	let byteOffset = 0;
+	let charOffset = 0;
+	for (let lineNum = 0; lineNum < doc.lineCount; lineNum++) {
+		const text = doc.lineAt(lineNum).text;
+		yield { pos: new vscode.Position(lineNum, 0), text, byteOffset, charOffset };
+		byteOffset += Buffer.from(text, UTF8).length + lineEndBytes;
+		charOffset += [...text].length + 1;
+	}
+}
+
+export function* iterCharPositions(doc: vscode.TextDocument, lineInfo?: LineInfo): Generator<CharInfo> {
+	let pos = lineInfo?.pos || new vscode.Position(0, 0);
+	let byteOffset = lineInfo?.byteOffset || 0;
+	let charOffset = lineInfo?.charOffset || 0;
+	while (true) {
+		let nextPos = advancePosition(pos, doc);
+		if (!nextPos) {
+			yield { char: '', pos, byteOffset, charOffset };
+			return;
+		}
+		const char = doc.getText(new vscode.Range(pos, nextPos))
+		yield { char, pos, byteOffset, charOffset };
+		byteOffset += Buffer.from(char, UTF8).length;
+		charOffset++;
+		pos = nextPos;
+	}
+}
+
+export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
+	let [targetOffset] = args;
+	if (typeof targetOffset != 'number') {
+		const input = await vscode.window.showInputBox({
+			prompt: 'Enter UTF-8 byte offset.'
+		});
+		targetOffset = Number.parseInt(input!);
+	}
+
+	const doc = editor.document;
+	let prevPos = null;
+	for (const charInfo of iterCharPositions(doc)) {
+		if (charInfo.byteOffset == targetOffset) {
+			editor.selection = new vscode.Selection(charInfo.pos, charInfo.pos);
+			break;
+		} else if (charInfo.byteOffset > targetOffset) {
+			editor.selection = new vscode.Selection(prevPos || charInfo.pos, charInfo.pos);
+			break;
+		}
+		prevPos = charInfo.pos;
+	}
+
+	// console.log([...iterLineRanges(doc)]);
+	// console.log([...iterCharPositions(doc, new vscode.Position(0,0), 0)]);
+	// let lineNum = 0;
+	// let lineStartOffset = 0;
+	// const lineEndBytes = doc.eol === vscode.EndOfLine.CRLF ? 2 : 1;
+	// while (true) {
+	// 	const line = doc.lineAt(lineNum).text;
+	// 	const lineEndOffset = lineStartOffset + Buffer.from(line, UTF8).length;
+	// 	const nextLineStartOffset = lineEndOffset + lineEndBytes;
+	// 	if (nextLineStartOffset > targetOffset) {
+	// 		let byteIndex = lineStartOffset;
+	// 		let realColumn = 0;
+	// 		let adjustedColumn = 0;
+	// 		let selectionWidth = 0;
+	// 		for (const char of line + '\r\n') {
+	// 			if (byteIndex == targetOffset) {
+	// 				break;
+	// 			}
+	// 			const nextByteIndex = byteIndex + Buffer.from(char, UTF8).length;
+	// 			if (nextByteIndex > targetOffset) {
+	// 				selectionWidth = char.length;
+	// 				break;
+	// 			}
+	// 			realColumn++;
+	// 			adjustedColumn += char.length;
+	// 			byteIndex = nextByteIndex;
+	// 		}
+	// 		const startPos = new vscode.Position(lineNum, adjustedColumn);
+	// 		const endPos = advancePosition(startPos, doc, selectionWidth);
+	// 		editor.selection = new vscode.Selection(startPos, endPos);
+	// 		break;
+	// 	}
+	// 	lineStartOffset = nextLineStartOffset;
+	// 	++lineNum;
+	// }
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	const onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
 	const provider = new class implements vscode.TextDocumentContentProvider {
@@ -106,9 +252,11 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	};
 	context.subscriptions.push(
-		vscode.workspace.registerTextDocumentContentProvider(SCHEME, provider));
-	context.subscriptions.push(
-		vscode.commands.registerTextEditorCommand('char-utils.showCharInfo', showCharInfo));
+		vscode.workspace.registerTextDocumentContentProvider(SCHEME, provider),
+		vscode.commands.registerTextEditorCommand('char-utils.showCharInfo', showCharInfo),
+		vscode.commands.registerTextEditorCommand('char-utils.gotoChar', gotoChar),
+		vscode.commands.registerTextEditorCommand('char-utils.gotoByte', gotoByte),
+	);
 
 }
 

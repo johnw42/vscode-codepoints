@@ -1,15 +1,378 @@
 import * as assert from 'assert';
 
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
 import * as vscode from 'vscode';
-// import * as myExtension from '../../extension';
+import * as ext from '../../extension';
+import * as path from 'path';
+import exp = require('constants');
 
 suite('Extension Test Suite', () => {
 	vscode.window.showInformationMessage('Start all tests.');
 
-	test('Sample test', () => {
-		assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-		assert.strictEqual(-1, [1, 2, 3].indexOf(0));
+	const fileCache = new Map<string, vscode.TextDocument>();
+
+	async function loadFile(filename: string): Promise<vscode.TextDocument> {
+		let doc = fileCache.get(filename);
+		if (!doc) {
+			const testDir =  path.resolve(__dirname, '../../../src/test/suite');
+			doc = await vscode.workspace.openTextDocument(path.join(testDir, filename));
+			fileCache.set(filename, doc);
+		}
+		return doc;
+	}
+
+	async function testIterCharPositions(filename: string, expectedChars: any[]) {
+		const doc = await loadFile(filename);
+
+		let i = 0;
+		for (const info of ext.iterCharPositions(doc)) {
+			const expectedChar = expectedChars[i];
+			const checkEq = <T> (actual: T, expected: T, desc: string) => {
+				assert.strictEqual(actual, expected, `incorrect ${desc} at position ${i}: ${JSON.stringify(expectedChar)}`);
+			};
+			checkEq(info.pos.line, expectedChar.line, 'line number');
+			checkEq(info.pos.character, expectedChar.column, 'column number');
+			checkEq(info.byteOffset, expectedChar.byteOffset, 'byte offset');
+			checkEq(info.charOffset, expectedChar.charOffset, 'char offset');
+			checkEq(info.char.codePointAt(0), expectedChar.codePoint, 'code point');
+			checkEq(info.char, expectedChar.char, 'character');
+			i++;
+		}
+	}
+
+	async function testIterLineStartPositions(filename: string, expectedLines: any[]) {
+		const doc = await loadFile(filename);
+
+		let i = 0;
+		for (const info of ext.iterLineStartPositions(doc)) {
+			const expectedLine = expectedLines[i];
+			const checkEq = <T> (actual: T, expected: T, desc: string) => {
+				assert.strictEqual(actual, expected, `incorrect ${desc} at position ${i}: ${JSON.stringify(expectedLine)}`);
+			};
+			checkEq(info.byteOffset, expectedLine.byteOffset, 'byte offset');
+			checkEq(info.charOffset, expectedLine.charOffset, 'char offset');
+			i++;
+		}
+	}
+
+	for (const filename of ['windows.txt', 'unix.txt']) {
+		test(`gotoChar in ${filename}`, async () => {
+			const doc = await loadFile(filename);
+			const editor = await vscode.window.showTextDocument(doc);
+			const data: any[] = [
+				{ line: 0, col: 0 },
+				{ line: 0, col: 1 },
+				{ line: 1, col: 0 },
+				{ line: 1, col: 1 },
+				{ line: 1, col: 2 },
+				{ line: 1, col: 3 },
+				{ line: 1, col: 4 },
+				{ line: 1, col: 6 },
+				{ line: 1, col: 7 },
+				{ line: 2, col: 0 },
+				{ line: 2, col: 1 },
+			];
+			let i = 0;
+			for (const expectedPos of data) {
+				await ext.gotoChar(editor, undefined, [i]);
+				const checkEq = (actual: any, field: string) => {
+					assert.strictEqual(actual, expectedPos[field] as any, `incorrect ${field} at position ${i}: ${JSON.stringify(expectedPos)}`);
+				};
+				assert.strictEqual(editor.selections.length, 1, 'too many selections');
+				assert.ok(editor.selection.isEmpty, 'selection is not empty');
+				checkEq(editor.selection.start.line, 'line');
+				checkEq(editor.selection.start.character, 'col');
+				i++;
+			}
+		});
+	}
+
+	async function testGotoByte(filename: string, expectedRanges: any[]) {
+		const doc = await loadFile(filename);
+		const editor = await vscode.window.showTextDocument(doc);
+		let i = 0;
+		for (let expectedRange of expectedRanges) {
+			await ext.gotoByte(editor, undefined, [i]);
+			assert.strictEqual(editor.selections.length, 1, 'too many selections');
+			expectedRange = {
+				...{
+					line2: expectedRange.line1,
+					col2: expectedRange.col1,
+				},
+				...expectedRange,
+			};
+			const actualRange = {
+				line1: editor.selection.start.line,
+				col1: editor.selection.start.character,
+				line2: editor.selection.end.line,
+				col2: editor.selection.end.character,
+			};
+			assert.deepStrictEqual(actualRange, expectedRange, `error at position ${i}`);
+			i++;
+		}
+	}
+	
+	test('gotoByte (Windows)', async () => {
+		await testGotoByte('windows.txt', [
+			{ line1: 0, col1: 0 }, // a
+			{ line1: 0, col1: 1 }, // CR
+			{ line1: 0, col1: 1, line2: 1, col2: 0 }, // LF
+			{ line1: 1, col1: 0 }, // b
+			{ line1: 1, col1: 1 }, // ESC
+			{ line1: 1, col1: 2 }, // æ
+			{ line1: 1, col1: 2, col2: 3 }, // æ
+			{ line1: 1, col1: 3 }, // Ω
+			{ line1: 1, col1: 3, col2: 4 }, // Ω
+			{ line1: 1, col1: 4 }, // 😀
+			{ line1: 1, col1: 4, col2: 6 }, // 😀
+			{ line1: 1, col1: 4, col2: 6 }, // 😀
+			{ line1: 1, col1: 4, col2: 6 }, // 😀
+			{ line1: 1, col1: 6 }, // x
+			{ line1: 1, col1: 7 }, // CR
+			{ line1: 1, col1: 7, line2: 2, col2: 0 }, // LF
+			{ line1: 2, col1: 0 }, // c
+			{ line1: 2, col1: 1 }, // EOF
+		]);
+	});
+
+	test('gotoByte (Unix)', async () => {
+		await testGotoByte('unix.txt', [
+			{ line1: 0, col1: 0 }, // a
+			{ line1: 0, col1: 1 }, // LF
+			{ line1: 1, col1: 0 }, // b
+			{ line1: 1, col1: 1 }, // ESC
+			{ line1: 1, col1: 2 }, // æ
+			{ line1: 1, col1: 2, col2: 3 }, // æ
+			{ line1: 1, col1: 3 }, // Ω
+			{ line1: 1, col1: 3, col2: 4 }, // Ω
+			{ line1: 1, col1: 4 }, // 😀
+			{ line1: 1, col1: 4, col2: 6 }, // 😀
+			{ line1: 1, col1: 4, col2: 6 }, // 😀
+			{ line1: 1, col1: 4, col2: 6 }, // 😀
+			{ line1: 1, col1: 6 }, // x
+			{ line1: 1, col1: 7 }, // LF
+			{ line1: 2, col1: 0 }, // c
+			{ line1: 2, col1: 1 }, // EOF
+		]);
+	});
+
+	test('iterLineStartPositions (Windows)', async () => {
+		await testIterLineStartPositions('windows.txt', [
+			{
+				byteOffset: 0,
+				charOffset: 0,
+			},
+			{
+				byteOffset: 3,
+				charOffset: 2,
+			},
+			{
+				byteOffset: 16,
+				charOffset: 9,
+			},
+		]);
+	});
+
+	
+	test('iterLineStartPositions (Unix)', async () => {
+		await testIterLineStartPositions('unix.txt', [
+			{
+				byteOffset: 0,
+				charOffset: 0,
+			},
+			{
+				byteOffset: 2,
+				charOffset: 2,
+			},
+			{
+				byteOffset: 14,
+				charOffset: 9,
+			},
+		]);
+	});
+
+	test('iterCharPositions (Windows)', async () => {
+		await testIterCharPositions('windows.txt', [
+			{
+				line: 0,
+				column: 0,
+				char: "a",
+				byteOffset: 0,
+				charOffset: 0,
+				codePoint: 0x61,
+			},
+			{
+				line: 0,
+				column: 1,
+				char: "\r\n",
+				byteOffset: 1,
+				charOffset: 1,
+				codePoint: 0x0d,
+			},
+			{
+				line: 1,
+				column: 0,
+				char: "b",
+				byteOffset: 3,
+				charOffset: 2,
+				codePoint: 0x62,
+			},
+			{
+				line: 1,
+				column: 1,
+				char: "\u001b",
+				byteOffset: 4,
+				charOffset: 3,
+				codePoint: 0x1b,
+			},
+			{
+				line: 1,
+				column: 2,
+				char: "æ",
+				byteOffset: 5,
+				charOffset: 4,
+				codePoint: 0xe6,
+			},
+			{
+				line: 1,
+				column: 3,
+				char: "Ω",
+				byteOffset: 7,
+				charOffset: 5,
+				codePoint: 0x03a9,
+			},
+			{
+				line: 1,
+				column: 4,
+				char: "😀",
+				byteOffset: 9,
+				charOffset: 6,
+				codePoint: 0x1f600,
+			},
+			{
+				line: 1,
+				column: 6,
+				char: "x",
+				byteOffset: 13,
+				charOffset: 7,
+				codePoint: 0x78,
+			},
+			{
+				line: 1,
+				column: 7,
+				char: "\r\n",
+				byteOffset: 14,
+				charOffset: 8,
+				codePoint: 0x0d,
+			},
+			{
+				line: 2,
+				column: 0,
+				char: "c",
+				byteOffset: 16,
+				charOffset: 9,
+				codePoint: 0x63,
+			},
+			{
+				line: 2,
+				column: 1,
+				char: "",
+				byteOffset: 17,
+				charOffset: 10,
+				codePoint: undefined,
+			},
+		]);
+	});
+
+	test('iterCharPositions (Unix)', async () => {
+		await testIterCharPositions('unix.txt', [
+			{
+				line: 0,
+				column: 0,
+				char: "a",
+				byteOffset: 0,
+				charOffset: 0,
+				codePoint: 0x61,
+			},
+			{
+				line: 0,
+				column: 1,
+				char: "\n",
+				byteOffset: 1,
+				charOffset: 1,
+				codePoint: 0x0a,
+			},
+			{
+				line: 1,
+				column: 0,
+				char: "b",
+				byteOffset: 2,
+				charOffset: 2,
+				codePoint: 0x62,
+			},
+			{
+				line: 1,
+				column: 1,
+				char: "\u001b",
+				byteOffset: 3,
+				charOffset: 3,
+				codePoint: 0x1b,
+			},
+			{
+				line: 1,
+				column: 2,
+				char: "æ",
+				byteOffset: 4,
+				charOffset: 4,
+				codePoint: 0xe6,
+			},
+			{
+				line: 1,
+				column: 3,
+				char: "Ω",
+				byteOffset: 6,
+				charOffset: 5,
+				codePoint: 0x03a9,
+			},
+			{
+				line: 1,
+				column: 4,
+				char: "😀",
+				byteOffset: 8,
+				charOffset: 6,
+				codePoint: 0x1f600,
+			},
+			{
+				line: 1,
+				column: 6,
+				char: "x",
+				byteOffset: 12,
+				charOffset: 7,
+				codePoint: 0x78,
+			},
+			{
+				line: 1,
+				column: 7,
+				char: "\n",
+				byteOffset: 13,
+				charOffset: 8,
+				codePoint: 0x0a,
+			},
+			{
+				line: 2,
+				column: 0,
+				char: "c",
+				byteOffset: 14,
+				charOffset: 9,
+				codePoint: 0x63,
+			},
+			{
+				line: 2,
+				column: 1,
+				char: "",
+				byteOffset: 15,
+				charOffset: 10,
+				codePoint: undefined,
+			},
+		]);
 	});
 });
