@@ -77,7 +77,7 @@ suite('Extension Test Suite', () => {
 		}
 	}
 	
-	test('gotoByte (Windows)', async () => {
+	test('gotoByte in windows.txt', async () => {
 		await testGotoByte('windows.txt', [
 			{ line1: 0, col1: 0 }, // a
 			{ line1: 0, col1: 1 }, // CR
@@ -100,7 +100,7 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
-	test('gotoByte (Unix)', async () => {
+	test('gotoByte in unix.txt', async () => {
 		await testGotoByte('unix.txt', [
 			{ line1: 0, col1: 0 }, // a
 			{ line1: 0, col1: 1 }, // LF
@@ -136,7 +136,7 @@ suite('Extension Test Suite', () => {
 		}
 	}
 
-	test('iterLineStartPositions (Windows)', async () => {
+	test('iterLineStartPositions in windows.txt', async () => {
 		await testIterLineStartPositions('windows.txt', [
 			{
 				byteOffset: 0,
@@ -154,7 +154,7 @@ suite('Extension Test Suite', () => {
 	});
 
 	
-	test('iterLineStartPositions (Unix)', async () => {
+	test('iterLineStartPositions in unix.txt', async () => {
 		await testIterLineStartPositions('unix.txt', [
 			{
 				byteOffset: 0,
@@ -191,7 +191,7 @@ suite('Extension Test Suite', () => {
 		}
 	}
 
-	test('iterCharPositions (Windows)', async () => {
+	test('iterCharPositions in windows.txt', async () => {
 		await testIterCharPositions('windows.txt', [
 			{
 				line: 0,
@@ -284,7 +284,7 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
-	test('iterCharPositions (Unix)', async () => {
+	test('iterCharPositions in unix.txt', async () => {
 		await testIterCharPositions('unix.txt', [
 			{
 				line: 0,
