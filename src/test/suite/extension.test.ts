@@ -20,40 +20,6 @@ suite('Extension Test Suite', () => {
 		return doc;
 	}
 
-	async function testIterCharPositions(filename: string, expectedChars: any[]) {
-		const doc = await loadFile(filename);
-
-		let i = 0;
-		for (const info of ext.iterCharPositions(doc)) {
-			const expectedChar = expectedChars[i];
-			const checkEq = <T> (actual: T, expected: T, desc: string) => {
-				assert.strictEqual(actual, expected, `incorrect ${desc} at position ${i}: ${JSON.stringify(expectedChar)}`);
-			};
-			checkEq(info.pos.line, expectedChar.line, 'line number');
-			checkEq(info.pos.character, expectedChar.column, 'column number');
-			checkEq(info.byteOffset, expectedChar.byteOffset, 'byte offset');
-			checkEq(info.charOffset, expectedChar.charOffset, 'char offset');
-			checkEq(info.char.codePointAt(0), expectedChar.codePoint, 'code point');
-			checkEq(info.char, expectedChar.char, 'character');
-			i++;
-		}
-	}
-
-	async function testIterLineStartPositions(filename: string, expectedLines: any[]) {
-		const doc = await loadFile(filename);
-
-		let i = 0;
-		for (const info of ext.iterLineStartPositions(doc)) {
-			const expectedLine = expectedLines[i];
-			const checkEq = <T> (actual: T, expected: T, desc: string) => {
-				assert.strictEqual(actual, expected, `incorrect ${desc} at position ${i}: ${JSON.stringify(expectedLine)}`);
-			};
-			checkEq(info.byteOffset, expectedLine.byteOffset, 'byte offset');
-			checkEq(info.charOffset, expectedLine.charOffset, 'char offset');
-			i++;
-		}
-	}
-
 	for (const filename of ['windows.txt', 'unix.txt']) {
 		test(`gotoChar in ${filename}`, async () => {
 			const doc = await loadFile(filename);
@@ -74,13 +40,13 @@ suite('Extension Test Suite', () => {
 			let i = 0;
 			for (const expectedPos of data) {
 				await ext.gotoChar(editor, undefined, [i]);
-				const checkEq = (actual: any, field: string) => {
-					assert.strictEqual(actual, expectedPos[field] as any, `incorrect ${field} at position ${i}: ${JSON.stringify(expectedPos)}`);
-				};
 				assert.strictEqual(editor.selections.length, 1, 'too many selections');
 				assert.ok(editor.selection.isEmpty, 'selection is not empty');
-				checkEq(editor.selection.start.line, 'line');
-				checkEq(editor.selection.start.character, 'col');
+				const actualPos = {
+					line: editor.selection.start.line,
+					col: editor.selection.start.character,
+				};
+				assert.deepStrictEqual(actualPos, expectedPos, `error at position ${i}`);
 				i++;
 			}
 		});
@@ -155,6 +121,21 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
+	async function testIterLineStartPositions(filename: string, expectedLines: any[]) {
+		const doc = await loadFile(filename);
+
+		let i = 0;
+		for (const info of ext.iterLineStartPositions(doc)) {
+			const expectedLine = expectedLines[i];
+			const actualLine = {
+				byteOffset: info.byteOffset,
+				charOffset: info.charOffset,
+			};
+			assert.deepStrictEqual(actualLine, expectedLine, `error at position ${i}`);
+			i++;
+		}
+	}
+
 	test('iterLineStartPositions (Windows)', async () => {
 		await testIterLineStartPositions('windows.txt', [
 			{
@@ -189,6 +170,26 @@ suite('Extension Test Suite', () => {
 			},
 		]);
 	});
+
+	async function testIterCharPositions(filename: string, expectedChars: any[]) {
+		const doc = await loadFile(filename);
+
+		let i = 0;
+		for (const info of ext.iterCharPositions(doc)) {
+			const expectedChar = expectedChars[i];
+			const actualChar = {
+				line: info.pos.line,
+				column: info.pos.character,
+				byteOffset: info.byteOffset,
+				charOffset: info.charOffset,
+				codePoint: info.char.codePointAt(0),
+				char: info.char,
+	
+			};
+			assert.deepStrictEqual(actualChar, expectedChar, `error at position ${i}`);
+			i++;
+		}
+	}
 
 	test('iterCharPositions (Windows)', async () => {
 		await testIterCharPositions('windows.txt', [
