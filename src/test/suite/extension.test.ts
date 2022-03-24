@@ -16,6 +16,190 @@ suite('Extension Test Suite', () => {
 		}
 	});
 
+	function testIterCharDetails(eol: vscode.EndOfLine, expected: ext.CharDetails[]) {
+		const text = 'a\nbæΩ😀x\nc';
+		assert.deepStrictEqual(
+			[...ext.iterCharDetails(text, eol, { byte: 0, char: 0 })],
+			expected,
+		);
+	}
+
+	test('iterCharDetails for Windows', () => {
+		testIterCharDetails(
+			vscode.EndOfLine.CRLF,
+			[
+				{
+					"char": "a",
+					"byteOffset": 0,
+					"charOffset": 0,
+					"codePoint": 97,
+					"bytes": [97],
+					"charCodes": [97],
+				},
+				{
+					"char": "\n",
+					"byteOffset": 1,
+					"charOffset": 1,
+					"codePoint": 10,
+					"bytes": [13, 10],
+					"charCodes": [13, 10],
+				},
+				{
+					"char": "b",
+					"byteOffset": 3,
+					"charOffset": 2,
+					"codePoint": 98,
+					"bytes": [98],
+					"charCodes": [98],
+				},
+				{
+					"char": "\u001b",
+					"byteOffset": 4,
+					"charOffset": 3,
+					"codePoint": 27,
+					"bytes": [27],
+					"charCodes": [27],
+				},
+				{
+					"char": "æ",
+					"byteOffset": 5,
+					"charOffset": 4,
+					"codePoint": 230,
+					"bytes": [195, 166],
+					"charCodes": [230]
+				},
+				{
+					"char": "Ω",
+					"byteOffset": 7,
+					"charOffset": 5,
+					"codePoint": 937,
+					"bytes": [206, 169],
+					"charCodes": [937],
+				},
+				{
+					"char": "😀",
+					"byteOffset": 9,
+					"charOffset": 6,
+					"codePoint": 128512,
+					"bytes": [240, 159, 152, 128],
+					"charCodes": [55357, 56832],
+				},
+				{
+					"char": "x",
+					"byteOffset": 13,
+					"charOffset": 7,
+					"codePoint": 120,
+					"bytes": [120],
+					"charCodes": [120],
+				},
+				{
+					"char": "\n",
+					"byteOffset": 14,
+					"charOffset": 8,
+					"codePoint": 10,
+					"bytes": [13, 10],
+					"charCodes": [13, 10],
+				},
+				{
+					"char": "c",
+					"byteOffset": 16,
+					"charOffset": 9,
+					"codePoint": 99,
+					"bytes": [99],
+					"charCodes": [99],
+				}
+			]
+		);
+	});
+
+	test('iterCharDetails for Unix', () => {
+		testIterCharDetails(
+			vscode.EndOfLine.LF,
+			[
+				{
+					"char": "a",
+					"byteOffset": 0,
+					"charOffset": 0,
+					"codePoint": 97,
+					"bytes": [97],
+					"charCodes": [97],
+				},
+				{
+					"char": "\n",
+					"byteOffset": 1,
+					"charOffset": 1,
+					"codePoint": 10,
+					"bytes": [10],
+					"charCodes": [10],
+				},
+				{
+					"char": "b",
+					"byteOffset": 2,
+					"charOffset": 2,
+					"codePoint": 98,
+					"bytes": [98],
+					"charCodes": [98],
+				},
+				{
+					"char": "\u001b",
+					"byteOffset": 3,
+					"charOffset": 3,
+					"codePoint": 27,
+					"bytes": [27],
+					"charCodes": [27],
+				},
+				{
+					"char": "æ",
+					"byteOffset": 4,
+					"charOffset": 4,
+					"codePoint": 230,
+					"bytes": [195, 166],
+					"charCodes": [230],
+				},
+				{
+					"char": "Ω",
+					"byteOffset": 6,
+					"charOffset": 5,
+					"codePoint": 937,
+					"bytes": [206, 169],
+					"charCodes": [937],
+				},
+				{
+					"char": "😀",
+					"byteOffset": 8,
+					"charOffset": 6,
+					"codePoint": 128512,
+					"bytes": [240, 159, 152, 128],
+					"charCodes": [55357, 56832],
+				},
+				{
+					"char": "x",
+					"byteOffset": 12,
+					"charOffset": 7,
+					"codePoint": 120,
+					"bytes": [120],
+					"charCodes": [120],
+				},
+				{
+					"char": "\n",
+					"byteOffset": 13,
+					"charOffset": 8,
+					"codePoint": 10,
+					"bytes": [10],
+					"charCodes": [10],
+				},
+				{
+					"char": "c",
+					"byteOffset": 14,
+					"charOffset": 9,
+					"codePoint": 99,
+					"bytes": [99],
+					"charCodes": [99],
+				}
+			]
+		);
+	});
+
 	for (const filename of ['windows.txt', 'unix.txt']) {
 		test(`gotoChar in ${filename}`, async () => {
 			const doc = docs.get(filename)!;

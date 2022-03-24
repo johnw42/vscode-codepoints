@@ -21,7 +21,7 @@ function getDocText(doc: vscode.TextDocument, range: vscode.Range, maxLength?: n
 		if (text.match(/\r(?!\n)|(?<!\r)\n/)) {
 			throw Error('File contains broken CRLF pairs');
 		}
-		text = text.replace('\r\n', '\n');
+		text = text.replace(/\r\n/g, '\n');
 	}
 	return text;
 }
@@ -62,6 +62,42 @@ function advancePosition(pos: vscode.Position, doc: vscode.TextDocument, count =
 	return new vscode.Position(lineNum, colNum);
 }
 
+export type CharDetails = { 
+	char: string,
+	byteOffset: number,
+	charOffset: number,
+	codePoint: number,
+	bytes: number[],
+	charCodes: number[],
+};
+
+export function* iterCharDetails(text: string, eol: vscode.EndOfLine, startOffsets: Offsets): Iterable<CharDetails> {
+	let { char: charOffset, byte: byteOffset } = startOffsets;
+	for (const logicalChar of text) {
+		const physicalChars = logicalChar === '\n' && eol === vscode.EndOfLine.CRLF
+			? '\r\n'
+			: logicalChar;
+		const codePoint = logicalChar.codePointAt(0)!;
+		const bytes = [...Buffer.from(physicalChars, UTF8)];
+		const charCodes = [];
+		for (const char of physicalChars) {
+			for (let i = 0; i < char.length; i++) {
+				charCodes.push(char.charCodeAt(i));
+			}
+		}
+		yield {
+			char: logicalChar,
+			byteOffset,
+			charOffset,
+			codePoint,
+			bytes,
+			charCodes,
+		};
+		charOffset++;
+		byteOffset += bytes.length;
+	}
+}
+
 async function showCharInfo(editor: vscode.TextEditor, _edit: vscode.TextEditorEdit) {
 	const doc = editor.document;
 	let range = editor.selection.with();
@@ -75,29 +111,16 @@ async function showCharInfo(editor: vscode.TextEditor, _edit: vscode.TextEditorE
 		`Name: ${doc.fileName}`,
 		'',
 	];
-
-	const offsets = getOffsets(doc, range.start);
-	for (const logicalChar of text) {
-		const physicalChars = logicalChar === '\n' && doc.eol === vscode.EndOfLine.CRLF
-			? '\r\n'
-			: logicalChar;
-		const codePoint = logicalChar.codePointAt(0)!;
-		const utf8 = [...Buffer.from(physicalChars, UTF8)];
-		const charCodes = [];
-		for (let i = 0; i < logicalChar.length; i++) {
-			charCodes.push(logicalChar.charCodeAt(i));
-		}
+	for (const d of iterCharDetails(text, doc.eol, getOffsets(doc, range.start))) {
 		content.push(
-			`Character:  ${JSON.stringify(logicalChar)}`,
-			`Byte offset: ${offsets.byte}`,
-			`Char offset: ${offsets.char}`,
-			`Code point:  U+${hex(codePoint)}`,
-			`UTF-8:       ${utf8.map(value => hex(value)).join(' ')}`,
-			`JavaScript: "${charCodes.map(value => '\\u' + hex(value, 4)).join('')}"`,
+			`Character:  ${JSON.stringify(d.char)}`,
+			`Byte offset: ${d.byteOffset}`,
+			`Char offset: ${d.charOffset}`,
+			`Code point:  U+${hex(d.codePoint)}`,
+			`UTF-8:       ${d.bytes.map(value => hex(value)).join(' ')}`,
+			`JavaScript: "${d.charCodes.map(value => '\\u' + hex(value, 4)).join('')}"`,
 			'',
 		);
-		offsets.char++;
-		offsets.byte += utf8.length;
 	}
 
 	++counter;
