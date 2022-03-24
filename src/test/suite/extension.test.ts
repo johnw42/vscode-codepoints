@@ -1,28 +1,24 @@
 import * as assert from 'assert';
-
 import * as vscode from 'vscode';
 import * as ext from '../../extension';
 import * as path from 'path';
-import exp = require('constants');
 
 suite('Extension Test Suite', () => {
 	vscode.window.showInformationMessage('Start all tests.');
 
-	const fileCache = new Map<string, vscode.TextDocument>();
+	const docs = new Map<string, vscode.TextDocument>();
 
-	async function loadFile(filename: string): Promise<vscode.TextDocument> {
-		let doc = fileCache.get(filename);
-		if (!doc) {
-			const testDir =  path.resolve(__dirname, '../../../src/test/suite');
-			doc = await vscode.workspace.openTextDocument(path.join(testDir, filename));
-			fileCache.set(filename, doc);
+	suiteSetup(async () => {
+		const testDir =  path.resolve(__dirname, '../../../src/test/suite');
+		for (const filename of ['windows.txt', 'unix.txt']) {
+			docs.set(filename, await vscode.workspace.openTextDocument(path.join(testDir, filename)));
+
 		}
-		return doc;
-	}
+	});
 
 	for (const filename of ['windows.txt', 'unix.txt']) {
 		test(`gotoChar in ${filename}`, async () => {
-			const doc = await loadFile(filename);
+			const doc = docs.get(filename)!;
 			const editor = await vscode.window.showTextDocument(doc);
 			const data: any[] = [
 				{ line: 0, col: 0 },
@@ -53,7 +49,7 @@ suite('Extension Test Suite', () => {
 	}
 
 	async function testGotoByte(filename: string, expectedRanges: any[]) {
-		const doc = await loadFile(filename);
+		const doc = docs.get(filename)!;
 		const editor = await vscode.window.showTextDocument(doc);
 		let i = 0;
 		for (let expectedRange of expectedRanges) {
@@ -121,8 +117,8 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
-	async function testIterLineStartPositions(filename: string, expectedLines: any[]) {
-		const doc = await loadFile(filename);
+	function testIterLineStartPositions(filename: string, expectedLines: any[]) {
+		const doc = docs.get(filename)!;
 
 		let i = 0;
 		for (const info of ext.iterLineStartPositions(doc)) {
@@ -136,8 +132,8 @@ suite('Extension Test Suite', () => {
 		}
 	}
 
-	test('iterLineStartPositions in windows.txt', async () => {
-		await testIterLineStartPositions('windows.txt', [
+	test('iterLineStartPositions in windows.txt', () => {
+		testIterLineStartPositions('windows.txt', [
 			{
 				byteOffset: 0,
 				charOffset: 0,
@@ -154,8 +150,8 @@ suite('Extension Test Suite', () => {
 	});
 
 	
-	test('iterLineStartPositions in unix.txt', async () => {
-		await testIterLineStartPositions('unix.txt', [
+	test('iterLineStartPositions in unix.txt', () => {
+		testIterLineStartPositions('unix.txt', [
 			{
 				byteOffset: 0,
 				charOffset: 0,
@@ -171,8 +167,8 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
-	async function testIterCharPositions(filename: string, expectedChars: any[]) {
-		const doc = await loadFile(filename);
+	function testIterCharPositions(filename: string, expectedChars: any[]) {
+		const doc = docs.get(filename)!;
 
 		let i = 0;
 		for (const info of ext.iterCharPositions(doc)) {
@@ -191,8 +187,8 @@ suite('Extension Test Suite', () => {
 		}
 	}
 
-	test('iterCharPositions in windows.txt', async () => {
-		await testIterCharPositions('windows.txt', [
+	test('iterCharPositions in windows.txt', () => {
+		testIterCharPositions('windows.txt', [
 			{
 				line: 0,
 				column: 0,
@@ -284,8 +280,8 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
-	test('iterCharPositions in unix.txt', async () => {
-		await testIterCharPositions('unix.txt', [
+	test('iterCharPositions in unix.txt', () => {
+		testIterCharPositions('unix.txt', [
 			{
 				line: 0,
 				column: 0,

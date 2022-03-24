@@ -117,39 +117,6 @@ async function showCharInfo(editor: vscode.TextEditor, _edit: vscode.TextEditorE
 	});
 }
 
-// TODO: Use iter... functions.
-export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
-	let [targetOffset] = args;
-	if (typeof targetOffset != 'number') {
-		const input = await vscode.window.showInputBox({
-			prompt: 'Enter character offset.'
-		});
-		targetOffset = Number.parseInt(input!);
-	}
-	const doc = editor.document;
-	let lineNum = 0;
-	let lineStartOffset = 0;
-	while (true) {
-		const line = doc.lineAt(lineNum).text;
-		const lineEndOffset = lineStartOffset + [...line].length;
-		if (lineEndOffset >= targetOffset) {
-			const realColumn = targetOffset - lineStartOffset;
-			let adjustedColumn = 0;
-			let charCounter = 0;
-			for (const char of line) {
-				if (charCounter >= realColumn) break;
-				adjustedColumn += char.length;
-				++charCounter;
-			}
-			const pos = new vscode.Position(lineNum, adjustedColumn);
-			editor.selection = new vscode.Selection(pos, pos);
-			break;
-		}
-		lineStartOffset = lineEndOffset + 1;
-		++lineNum;
-	}
-}
-
 type LineInfo = { text: string, pos: vscode.Position, byteOffset: number, charOffset: number };
 type CharInfo = { char: string, pos: vscode.Position, byteOffset: number, charOffset: number };
 
@@ -165,10 +132,9 @@ export function* iterLineStartPositions(doc: vscode.TextDocument): Generator<Lin
 	}
 }
 
-export function* iterCharPositions(doc: vscode.TextDocument, lineInfo?: LineInfo): Generator<CharInfo> {
-	let pos = lineInfo?.pos || new vscode.Position(0, 0);
-	let byteOffset = lineInfo?.byteOffset || 0;
-	let charOffset = lineInfo?.charOffset || 0;
+export function* iterCharPositions(doc: vscode.TextDocument, start?: LineInfo): Generator<CharInfo> {
+	let { pos, byteOffset, charOffset } =
+		start || { pos: new vscode.Position(0, 0), byteOffset: 0, charOffset: 0 };
 	while (true) {
 		let nextPos = advancePosition(pos, doc);
 		if (!nextPos) {
@@ -183,6 +149,20 @@ export function* iterCharPositions(doc: vscode.TextDocument, lineInfo?: LineInfo
 	}
 }
 
+function* peeking<T>(iterable: Iterable<T>): Iterable<{ current: T, next?: T }> {
+	let item: { current: T, next?: T } | undefined;
+	for (const next of iterable) {
+		if (item) {
+			item.next = next;
+			yield item;
+		}
+		item = { current: next };
+	}
+	if (item) {
+		yield item;
+	}
+}
+
 export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
 	let [targetOffset] = args;
 	if (typeof targetOffset != 'number') {
@@ -193,53 +173,45 @@ export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEdi
 	}
 
 	const doc = editor.document;
-	let prevPos = null;
-	for (const charInfo of iterCharPositions(doc)) {
-		if (charInfo.byteOffset == targetOffset) {
-			editor.selection = new vscode.Selection(charInfo.pos, charInfo.pos);
-			break;
-		} else if (charInfo.byteOffset > targetOffset) {
-			editor.selection = new vscode.Selection(prevPos || charInfo.pos, charInfo.pos);
-			break;
+	for (const lineInfo of peeking(iterLineStartPositions(doc))) {
+		let prevPos = null;
+		if (!lineInfo.next || lineInfo.next.byteOffset > targetOffset) {
+			for (const charInfo of iterCharPositions(doc, lineInfo.current)) {
+				if (charInfo.byteOffset == targetOffset) {
+					editor.selection = new vscode.Selection(charInfo.pos, charInfo.pos);
+					return;
+				} else if (charInfo.byteOffset > targetOffset) {
+					editor.selection = new vscode.Selection(prevPos || charInfo.pos, charInfo.pos);
+					return;
+				}
+				prevPos = charInfo.pos;
+			}
 		}
-		prevPos = charInfo.pos;
+	}
+}
+
+export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
+	let [targetOffset] = args;
+	if (typeof targetOffset != 'number') {
+		const input = await vscode.window.showInputBox({
+			prompt: 'Enter character offset.'
+		});
+		targetOffset = Number.parseInt(input!);
 	}
 
-	// console.log([...iterLineRanges(doc)]);
-	// console.log([...iterCharPositions(doc, new vscode.Position(0,0), 0)]);
-	// let lineNum = 0;
-	// let lineStartOffset = 0;
-	// const lineEndBytes = doc.eol === vscode.EndOfLine.CRLF ? 2 : 1;
-	// while (true) {
-	// 	const line = doc.lineAt(lineNum).text;
-	// 	const lineEndOffset = lineStartOffset + Buffer.from(line, UTF8).length;
-	// 	const nextLineStartOffset = lineEndOffset + lineEndBytes;
-	// 	if (nextLineStartOffset > targetOffset) {
-	// 		let byteIndex = lineStartOffset;
-	// 		let realColumn = 0;
-	// 		let adjustedColumn = 0;
-	// 		let selectionWidth = 0;
-	// 		for (const char of line + '\r\n') {
-	// 			if (byteIndex == targetOffset) {
-	// 				break;
-	// 			}
-	// 			const nextByteIndex = byteIndex + Buffer.from(char, UTF8).length;
-	// 			if (nextByteIndex > targetOffset) {
-	// 				selectionWidth = char.length;
-	// 				break;
-	// 			}
-	// 			realColumn++;
-	// 			adjustedColumn += char.length;
-	// 			byteIndex = nextByteIndex;
-	// 		}
-	// 		const startPos = new vscode.Position(lineNum, adjustedColumn);
-	// 		const endPos = advancePosition(startPos, doc, selectionWidth);
-	// 		editor.selection = new vscode.Selection(startPos, endPos);
-	// 		break;
-	// 	}
-	// 	lineStartOffset = nextLineStartOffset;
-	// 	++lineNum;
-	// }
+	const doc = editor.document;
+	for (const lineInfo of peeking(iterLineStartPositions(doc))) {
+		let prevPos = null;
+		if (!lineInfo.next || lineInfo.next.charOffset > targetOffset) {
+			for (const charInfo of iterCharPositions(doc, lineInfo.current)) {
+				if (charInfo.charOffset >= targetOffset) {
+					editor.selection = new vscode.Selection(charInfo.pos, charInfo.pos);
+					return;
+				}
+				prevPos = charInfo.pos;
+			}
+		}
+	}
 }
 
 export function activate(context: vscode.ExtensionContext) {
