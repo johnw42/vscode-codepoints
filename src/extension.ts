@@ -81,7 +81,7 @@ function advancePosition(pos: vscode.Position, doc: vscode.TextDocument, count =
 
 // Details of a character/location in a text document corresponding to a
 // single Unicode code point.
-export type CharDetails = { 
+export type CharDetails = {
     // The character itself.  This string will have a length of 2
     // if it represented in JavaScript as a surrogate pair.  Line
     // endings are always '\n' regardless of the line endings of
@@ -251,21 +251,21 @@ function* peeking<T>(iterable: Iterable<T>): Iterable<{ current: T, next?: T }> 
     }
 }
 
+// Given an input parsing function and an error message, makes a validator
+// function for `vscode.window.showInputBox`.
+function makeValidator(parseFn: (input: string) => any, message: string): (input: string) => string | null {
+    return input => parseFn(input) == null ? message : null;
+}
+
 function parseOffset(input: string): number | null {
-    if (/0x[0-9a-f]+|[0-9]+/i.test(input)) {
+    if (/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(input)) {
         return Number.parseInt(input);
     } else {
         return null;
     }
 }
 
-function validateOffset(input: string): string | null {
-    if (parseOffset(input) == null) {
-        return 'Please enter a decimal or hexadecimal number.'
-    } else {
-        return null;
-    }
-}
+const validateOffset = makeValidator(parseOffset, 'Please enter a decimal or hexadecimal number.');
 
 // Command to go to a specific byte offset.
 export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
@@ -322,6 +322,32 @@ export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEdi
     }
 }
 
+function parseCodePoint(input: string): number | null {
+    let match;
+    if (/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(input)) {
+        return Number.parseInt(input);
+    } else if (match = /^(?:u\+|\\[ux])([0-9a-f]+)$/i.exec(input)) {
+        return Number.parseInt(match[1], 16);
+    } else {
+        return null;
+    }
+}
+
+// Command to insert a specific Unicode code point.
+async function insertCodePoint(editor: vscode.TextEditor) {
+    const input = await vscode.window.showInputBox({
+        prompt: 'Enter code point.',
+        validateInput: makeValidator(parseCodePoint, 'Enter a decimal number or U+..., \\u..., 0x..., etc.'),
+    });
+    const codePoint = parseCodePoint(input!)!;
+    const str = String.fromCodePoint(codePoint);
+    await editor.edit(edit => {
+        for (const selection of editor.selections) {
+            edit.replace(selection, str);
+        }
+    });
+}
+
 export function activate(context: vscode.ExtensionContext) {
     // Create a content provider.  This is necessary to create a new text
     // document with specified contents that VS Code won't try to save when it's
@@ -340,6 +366,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerTextEditorCommand('char-utils.showCharInfo', showCharInfo),
         vscode.commands.registerTextEditorCommand('char-utils.gotoChar', gotoChar),
         vscode.commands.registerTextEditorCommand('char-utils.gotoByte', gotoByte),
+        vscode.commands.registerTextEditorCommand('char-utils.insertCodePoint', insertCodePoint),
     );
 
 }

@@ -12,7 +12,8 @@
   "activationEvents": [
     "onCommand:char-utils.showCharInfo",
     "onCommand:char-utils.gotoChar",
-    "onCommand:char-utils.gotoByte"
+    "onCommand:char-utils.gotoByte",
+    "onCommand:char-utils.insertCodePoint"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -28,6 +29,10 @@
       {
         "command": "char-utils.gotoByte",
         "title": "Char Utils: Go to byte offset"
+      },
+      {
+        "command": "char-utils.insertCodePoint",
+        "title": "Char Utils: Insert code point"
       }
     ]
   },
