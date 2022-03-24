@@ -120,15 +120,25 @@ async function showCharInfo(editor: vscode.TextEditor, _edit: vscode.TextEditorE
 type LineInfo = { text: string, pos: vscode.Position, byteOffset: number, charOffset: number };
 type CharInfo = { char: string, pos: vscode.Position, byteOffset: number, charOffset: number };
 
-export function* iterLineStartPositions(doc: vscode.TextDocument): Generator<LineInfo> {
+export function* iterLineStartPositions(
+	doc: vscode.TextDocument,
+	options: {
+		omitByteOffset?: boolean,
+		omitCharOffset?: boolean,
+	} = {},
+): Generator<LineInfo> {
 	const lineEndBytes = doc.eol === vscode.EndOfLine.CRLF ? 2 : 1;
 	let byteOffset = 0;
 	let charOffset = 0;
 	for (let lineNum = 0; lineNum < doc.lineCount; lineNum++) {
 		const text = doc.lineAt(lineNum).text;
 		yield { pos: new vscode.Position(lineNum, 0), text, byteOffset, charOffset };
-		byteOffset += Buffer.from(text, UTF8).length + lineEndBytes;
-		charOffset += [...text].length + 1;
+		if (!options.omitByteOffset) {
+			byteOffset += Buffer.from(text, UTF8).length + lineEndBytes;
+		}
+		if (!options.omitCharOffset) {
+			charOffset += [...text].length + 1;
+		}
 	}
 }
 
@@ -173,7 +183,7 @@ export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEdi
 	}
 
 	const doc = editor.document;
-	for (const lineInfo of peeking(iterLineStartPositions(doc))) {
+	for (const lineInfo of peeking(iterLineStartPositions(doc, { omitCharOffset: true }))) {
 		let prevPos = null;
 		if (!lineInfo.next || lineInfo.next.byteOffset > targetOffset) {
 			for (const charInfo of iterCharPositions(doc, lineInfo.current)) {
@@ -200,7 +210,7 @@ export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEdi
 	}
 
 	const doc = editor.document;
-	for (const lineInfo of peeking(iterLineStartPositions(doc))) {
+	for (const lineInfo of peeking(iterLineStartPositions(doc, { omitByteOffset: true }))) {
 		let prevPos = null;
 		if (!lineInfo.next || lineInfo.next.charOffset > targetOffset) {
 			for (const charInfo of iterCharPositions(doc, lineInfo.current)) {
