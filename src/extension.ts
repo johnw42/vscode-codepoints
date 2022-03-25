@@ -18,7 +18,7 @@ const pathToContent = new Map<string, string[]>();
 // number of leading zeros.  The result will be at least `minWidth` characters.
 function hex(n: number, minWidth = 0) {
     let result = n.toString(16);
-    while (result.length < minWidth || (result.length < 4 && result.length % 2 != 0)) {
+    while (result.length < minWidth || (result.length < 4 && result.length % 2 !== 0)) {
         result = '0' + result;
     }
     return result;
@@ -79,27 +79,26 @@ function advancePosition(pos: vscode.Position, doc: vscode.TextDocument, count =
     return new vscode.Position(lineNum, colNum);
 }
 
-// Details of a character/location in a text document corresponding to a
-// single Unicode code point.
+// Details of a character/location in a text document corresponding to a single
+// Unicode code point.
 export type CharDetails = {
-    // The character itself.  This string will have a length of 2
-    // if it represented in JavaScript as a surrogate pair.  Line
-    // endings are always '\n' regardless of the line endings of
-    // the file.
+    // The character itself.  This string will have a length of 2 if it
+    // represented in JavaScript as a surrogate pair.  Line endings are always
+    // '\n' regardless of the line endings of the file.
     char: string,
-    // The offset of the first byte of the character from the start
-    // of the document.
+    // The offset of the first byte of the character from the start of the
+    // document.
     byteOffset: number,
-    // The offset in characters from the start of the document.  Line
-    // endings are always counted as a single character.
+    // The offset in characters from the start of the document.  Line endings
+    // are always counted as a single character.
     charOffset: number,
     // The Unicode code point.
     codePoint: number,
-    // The bytes used to represent the character in a file, assuming
-    // the encoding is UTF-8.
+    // The bytes used to represent the character in a file, assuming the
+    // encoding is UTF-8.
     bytes: number[],
-    // The JavaScript character code(s) of the character.  Has the
-    // same length as `this.char`.
+    // The JavaScript character code(s) of the character.  Has the same length
+    // as `char`, except for CRLF line endings.
     charCodes: number[],
 };
 
@@ -226,7 +225,7 @@ export function* iterCharPositions(doc: vscode.TextDocument, start?: LineInfo): 
             yield { char: '', pos, byteOffset, charOffset };
             return;
         }
-        const char = doc.getText(new vscode.Range(pos, nextPos))
+        const char = doc.getText(new vscode.Range(pos, nextPos));
         yield { char, pos, byteOffset, charOffset };
         byteOffset += Buffer.from(char, ENCODING).length;
         charOffset++;
@@ -254,7 +253,7 @@ function* peeking<T>(iterable: Iterable<T>): Iterable<{ current: T, next?: T }> 
 // Given an input parsing function and an error message, makes a validator
 // function for `vscode.window.showInputBox`.
 function makeValidator(parseFn: (input: string) => any, message: string): (input: string) => string | null {
-    return input => parseFn(input) == null ? message : null;
+    return input => parseFn(input) === null ? message : null;
 }
 
 function parseOffset(input: string): number | null {
@@ -270,7 +269,7 @@ const validateOffset = makeValidator(parseOffset, 'Please enter a decimal or hex
 // Command to go to a specific byte offset.
 export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
     let [targetOffset] = args;
-    if (typeof targetOffset != 'number') {
+    if (typeof targetOffset !== 'number') {
         const input = await vscode.window.showInputBox({
             prompt: 'Enter UTF-8 byte offset.',
             validateInput: validateOffset,
@@ -283,7 +282,7 @@ export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEdi
         let prevPos = null;
         if (lineInfo.next !== undefined || lineInfo.next!.byteOffset > targetOffset) {
             for (const charInfo of iterCharPositions(doc, lineInfo.current)) {
-                if (charInfo.byteOffset == targetOffset) {
+                if (charInfo.byteOffset === targetOffset) {
                     editor.selection = new vscode.Selection(charInfo.pos, charInfo.pos);
                     return;
                 } else if (charInfo.byteOffset > targetOffset) {
@@ -299,7 +298,7 @@ export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEdi
 // Command to go to a specific character offset.
 export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
     let [targetOffset] = args;
-    if (typeof targetOffset != 'number') {
+    if (typeof targetOffset !== 'number') {
         const input = await vscode.window.showInputBox({
             prompt: 'Enter character offset.',
             validateInput: validateOffset,

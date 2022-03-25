@@ -9,7 +9,7 @@ suite('Extension Test Suite', () => {
 	const docs = new Map<string, vscode.TextDocument>();
 
 	suiteSetup(async () => {
-		const testDir =  path.resolve(__dirname, '../../../src/test/suite');
+		const testDir = path.resolve(__dirname, '../../../src/test/suite');
 		for (const filename of ['windows.txt', 'unix.txt']) {
 			docs.set(filename, await vscode.workspace.openTextDocument(path.join(testDir, filename)));
 
@@ -29,84 +29,84 @@ suite('Extension Test Suite', () => {
 			vscode.EndOfLine.CRLF,
 			[
 				{
-					"char": "a",
-					"byteOffset": 0,
-					"charOffset": 0,
-					"codePoint": 97,
-					"bytes": [97],
-					"charCodes": [97],
+					char: "a",
+					byteOffset: 0,
+					charOffset: 0,
+					codePoint: 0x61,
+					bytes: [0x61],
+					charCodes: [0x61],
 				},
 				{
-					"char": "\n",
-					"byteOffset": 1,
-					"charOffset": 1,
-					"codePoint": 10,
-					"bytes": [13, 10],
-					"charCodes": [13, 10],
+					char: "\n",
+					byteOffset: 1,
+					charOffset: 1,
+					codePoint: 0x0a,
+					bytes: [0x0d, 0x0a],
+					charCodes: [0x0d, 0x0a],
 				},
 				{
-					"char": "b",
-					"byteOffset": 3,
-					"charOffset": 2,
-					"codePoint": 98,
-					"bytes": [98],
-					"charCodes": [98],
+					char: "b",
+					byteOffset: 3,
+					charOffset: 2,
+					codePoint: 0x62,
+					bytes: [0x62],
+					charCodes: [0x62],
 				},
 				{
-					"char": "\u001b",
-					"byteOffset": 4,
-					"charOffset": 3,
-					"codePoint": 27,
-					"bytes": [27],
-					"charCodes": [27],
+					char: "\u001b",
+					byteOffset: 4,
+					charOffset: 3,
+					codePoint: 0x1b,
+					bytes: [0x1b],
+					charCodes: [0x1b],
 				},
 				{
-					"char": "æ",
-					"byteOffset": 5,
-					"charOffset": 4,
-					"codePoint": 230,
-					"bytes": [195, 166],
-					"charCodes": [230]
+					char: "æ",
+					byteOffset: 5,
+					charOffset: 4,
+					codePoint: 0xe6,
+					bytes: [0xc3, 0xa6],
+					charCodes: [0xe6]
 				},
 				{
-					"char": "Ω",
-					"byteOffset": 7,
-					"charOffset": 5,
-					"codePoint": 937,
-					"bytes": [206, 169],
-					"charCodes": [937],
+					char: "Ω",
+					byteOffset: 7,
+					charOffset: 5,
+					codePoint: 0x3a9,
+					bytes: [0xce, 0xa9],
+					charCodes: [0x3a9],
 				},
 				{
-					"char": "😀",
-					"byteOffset": 9,
-					"charOffset": 6,
-					"codePoint": 128512,
-					"bytes": [240, 159, 152, 128],
-					"charCodes": [55357, 56832],
+					char: "😀",
+					byteOffset: 9,
+					charOffset: 6,
+					codePoint: 0x1f600,
+					bytes: [0xf0, 0x9f, 0x98, 0x80],
+					charCodes: [0xd83d, 0xde00],
 				},
 				{
-					"char": "x",
-					"byteOffset": 13,
-					"charOffset": 7,
-					"codePoint": 120,
-					"bytes": [120],
-					"charCodes": [120],
+					char: "x",
+					byteOffset: 13,
+					charOffset: 7,
+					codePoint: 0x78,
+					bytes: [0x78],
+					charCodes: [0x78],
 				},
 				{
-					"char": "\n",
-					"byteOffset": 14,
-					"charOffset": 8,
-					"codePoint": 10,
-					"bytes": [13, 10],
-					"charCodes": [13, 10],
+					char: "\n",
+					byteOffset: 14,
+					charOffset: 8,
+					codePoint: 0x0a,
+					bytes: [0x0d, 0x0a],
+					charCodes: [0x0d, 0x0a],
 				},
 				{
-					"char": "c",
-					"byteOffset": 16,
-					"charOffset": 9,
-					"codePoint": 99,
-					"bytes": [99],
-					"charCodes": [99],
+					char: "c",
+					byteOffset: 16,
+					charOffset: 9,
+					codePoint: 0x63,
+					bytes: [0x63],
+					charCodes: [0x63],
 				}
 			]
 		);
@@ -117,84 +117,84 @@ suite('Extension Test Suite', () => {
 			vscode.EndOfLine.LF,
 			[
 				{
-					"char": "a",
-					"byteOffset": 0,
-					"charOffset": 0,
-					"codePoint": 97,
-					"bytes": [97],
-					"charCodes": [97],
+					char: "a",
+					byteOffset: 0,
+					charOffset: 0,
+					codePoint: 0x61,
+					bytes: [0x61],
+					charCodes: [0x61],
 				},
 				{
-					"char": "\n",
-					"byteOffset": 1,
-					"charOffset": 1,
-					"codePoint": 10,
-					"bytes": [10],
-					"charCodes": [10],
+					char: "\n",
+					byteOffset: 1,
+					charOffset: 1,
+					codePoint: 0x0a,
+					bytes: [0x0a],
+					charCodes: [0x0a],
 				},
 				{
-					"char": "b",
-					"byteOffset": 2,
-					"charOffset": 2,
-					"codePoint": 98,
-					"bytes": [98],
-					"charCodes": [98],
+					char: "b",
+					byteOffset: 2,
+					charOffset: 2,
+					codePoint: 0x62,
+					bytes: [0x62],
+					charCodes: [0x62],
 				},
 				{
-					"char": "\u001b",
-					"byteOffset": 3,
-					"charOffset": 3,
-					"codePoint": 27,
-					"bytes": [27],
-					"charCodes": [27],
+					char: "\u001b",
+					byteOffset: 3,
+					charOffset: 3,
+					codePoint: 0x1b,
+					bytes: [0x1b],
+					charCodes: [0x1b],
 				},
 				{
-					"char": "æ",
-					"byteOffset": 4,
-					"charOffset": 4,
-					"codePoint": 230,
-					"bytes": [195, 166],
-					"charCodes": [230],
+					char: "æ",
+					byteOffset: 4,
+					charOffset: 4,
+					codePoint: 0xe6,
+					bytes: [0xc3, 0xa6],
+					charCodes: [0xe6],
 				},
 				{
-					"char": "Ω",
-					"byteOffset": 6,
-					"charOffset": 5,
-					"codePoint": 937,
-					"bytes": [206, 169],
-					"charCodes": [937],
+					char: "Ω",
+					byteOffset: 6,
+					charOffset: 5,
+					codePoint: 0x3a9,
+					bytes: [0xce, 0xa9],
+					charCodes: [0x3a9],
 				},
 				{
-					"char": "😀",
-					"byteOffset": 8,
-					"charOffset": 6,
-					"codePoint": 128512,
-					"bytes": [240, 159, 152, 128],
-					"charCodes": [55357, 56832],
+					char: "😀",
+					byteOffset: 8,
+					charOffset: 6,
+					codePoint: 0x1f600,
+					bytes: [0xf0, 0x9f, 0x98, 0x80],
+					charCodes: [0xd83d, 0xde00],
 				},
 				{
-					"char": "x",
-					"byteOffset": 12,
-					"charOffset": 7,
-					"codePoint": 120,
-					"bytes": [120],
-					"charCodes": [120],
+					char: "x",
+					byteOffset: 12,
+					charOffset: 7,
+					codePoint: 0x78,
+					bytes: [0x78],
+					charCodes: [0x78],
 				},
 				{
-					"char": "\n",
-					"byteOffset": 13,
-					"charOffset": 8,
-					"codePoint": 10,
-					"bytes": [10],
-					"charCodes": [10],
+					char: "\n",
+					byteOffset: 13,
+					charOffset: 8,
+					codePoint: 0x0a,
+					bytes: [0x0a],
+					charCodes: [0x0a],
 				},
 				{
-					"char": "c",
-					"byteOffset": 14,
-					"charOffset": 9,
-					"codePoint": 99,
-					"bytes": [99],
-					"charCodes": [99],
+					char: "c",
+					byteOffset: 14,
+					charOffset: 9,
+					codePoint: 0x63,
+					bytes: [0x63],
+					charCodes: [0x63],
 				}
 			]
 		);
@@ -256,7 +256,7 @@ suite('Extension Test Suite', () => {
 			i++;
 		}
 	}
-	
+
 	test('gotoByte in windows.txt', async () => {
 		await testGotoByte('windows.txt', [
 			{ line1: 0, col1: 0 }, // a
@@ -333,7 +333,7 @@ suite('Extension Test Suite', () => {
 		]);
 	});
 
-	
+
 	test('iterLineStartPositions in unix.txt', () => {
 		testIterLineStartPositions('unix.txt', [
 			{
@@ -364,7 +364,7 @@ suite('Extension Test Suite', () => {
 				charOffset: info.charOffset,
 				codePoint: info.char.codePointAt(0),
 				char: info.char,
-	
+
 			};
 			assert.deepStrictEqual(actualChar, expectedChar, `error at position ${i}`);
 			i++;
