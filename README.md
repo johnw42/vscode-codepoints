@@ -1,6 +1,6 @@
 # Codepoints for Visual Studio Code
 
-This extension adds some commands for working the Unicode code points in your code.
+This extension adds some commands for working with Unicode code points in your code.
 
 ## Commands
 
