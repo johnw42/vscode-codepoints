@@ -2,6 +2,11 @@
   "name": "codepoints",
   "displayName": "Codepoints",
   "description": "Utilities for handling Unicode code points in your text files",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johnw42/vscode-codepoints.git"
+  },
+  "license": "MIT",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.65.0"
