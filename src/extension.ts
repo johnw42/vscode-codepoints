@@ -6,7 +6,7 @@ import { Buffer } from 'buffer';
 const ENCODING = 'utf8';
 
 // The URI scheme used for this extension.
-const SCHEME = 'char-utils';
+const SCHEME = 'codepoints';
 
 // Counter used for generating URIs.
 let uriCounter = 0;
@@ -362,10 +362,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.workspace.registerTextDocumentContentProvider(SCHEME, provider),
-        vscode.commands.registerTextEditorCommand('char-utils.showCharInfo', showCharInfo),
-        vscode.commands.registerTextEditorCommand('char-utils.gotoChar', gotoChar),
-        vscode.commands.registerTextEditorCommand('char-utils.gotoByte', gotoByte),
-        vscode.commands.registerTextEditorCommand('char-utils.insertCodePoint', insertCodePoint),
+        vscode.commands.registerTextEditorCommand('codepoints.showCharInfo', showCharInfo),
+        vscode.commands.registerTextEditorCommand('codepoints.gotoChar', gotoChar),
+        vscode.commands.registerTextEditorCommand('codepoints.gotoByte', gotoByte),
+        vscode.commands.registerTextEditorCommand('codepoints.insertCodePoint', insertCodePoint),
     );
 
 }

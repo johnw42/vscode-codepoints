@@ -1,7 +1,7 @@
 {
-  "name": "char-utils",
-  "displayName": "Char Utils",
-  "description": "Shows information about selected characters",
+  "name": "codepoints",
+  "displayName": "Codepoints",
+  "description": "Utilities for handling Unicode code points in your text files",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.65.0"
@@ -10,29 +10,29 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:char-utils.showCharInfo",
-    "onCommand:char-utils.gotoChar",
-    "onCommand:char-utils.gotoByte",
-    "onCommand:char-utils.insertCodePoint"
+    "onCommand:codepoints.showCharInfo",
+    "onCommand:codepoints.gotoChar",
+    "onCommand:codepoints.gotoByte",
+    "onCommand:codepoints.insertCodePoint"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "char-utils.showCharInfo",
-        "title": "Char Utils: Show character details"
+        "command": "codepoints.showCharInfo",
+        "title": "Codepoints: Show character details"
       },
       {
-        "command": "char-utils.gotoChar",
-        "title": "Char Utils: Go to character offset"
+        "command": "codepoints.gotoChar",
+        "title": "Codepoints: Go to character offset"
       },
       {
-        "command": "char-utils.gotoByte",
-        "title": "Char Utils: Go to byte offset"
+        "command": "codepoints.gotoByte",
+        "title": "Codepoints: Go to byte offset"
       },
       {
-        "command": "char-utils.insertCodePoint",
-        "title": "Char Utils: Insert code point"
+        "command": "codepoints.insertCodePoint",
+        "title": "Codepoints: Insert code point"
       }
     ]
   },
