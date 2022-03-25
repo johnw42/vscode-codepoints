@@ -1,70 +1,27 @@
-# charinfo README
+# Codepoints for Visual Studio Code
 
-This is the README for your extension "charinfo". After writing up a brief description, we recommend including the following sections.
+This extension adds some commands for working the Unicode code points in your code.
 
-## Features
+## Commands
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+* **Show character details:** Show details about the character at the cursor (or all selected characters), similar to the `what-cursor-position` command in Emacs.  Shows the following information about each character:
 
-For example if there is an image subfolder under your extension project workspace:
+  * `Character:`  The character itself as a JSON string literal.
+  * `Byte offset:`  The byte offset of the start of the character from the beginning of the file.  (See note 1 below.)
+  * `Char offset:`  The offset from the beginning of the file as a number of code points.  (See note 2 below.)
+  * `Code point:`  The code point in Unicode notation.
+  * `UTF-8:`  The bytes that make up the UTF-8 encoding of the character.
+  * `JavaScript:`  The JavaScript representation of the character using Unicode escape sequences.
 
-\!\[feature X\]\(images/feature-x.png\)
+* **Go to byte offset:**  Move the cursor to a character position specified as a number of bytes from the start of the file.  If the specified byte offset is not at the boundary between two characters, the character in which the byte offset occurs is selected.  The offset may be entered as a decimal number or a hexadecimal number with a `0x` prefix.  (See note 1 below.)
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+* **Go to character offset:**  Move the cursor to a character position specified as the number of code points from the start of the file.  The offset may be entered as a decimal number or a hexadecimal number with a `0x` prefix.  (See note 2 below.)
 
-## Requirements
+* **Insert code point:**  Insert a specific code point.  Input is treated as decimal by default, but various hexadecimal notations are allowed, so for example the letter 'A' may be entered as `65`, `0x41`, `\u41`, `\x41`, or `U+41`.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
-## Extension Settings
+## Notes
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+1. Visual Studio Code does not make the file encoding available to extensions, so the encoding is always assumed to be UTF-8.  Working with other encodings will yield incorrect results.
 
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+2. Line endings are always counted as a single character, even for files that use a CRLF sequence as a line ending, which is common on Windows.  This is allows consistent character offsets between Windows and other systems even when, for example, git automatically translates line endings to the platform's native convention.
