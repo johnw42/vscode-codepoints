@@ -200,44 +200,60 @@ suite('Extension Test Suite', () => {
 		);
 	});
 
-	for (const filename of ['windows.txt', 'unix.txt']) {
-		test(`gotoChar in ${filename}`, async () => {
-			const doc = docs.get(filename)!;
-			const editor = await vscode.window.showTextDocument(doc);
-			const data: any[] = [
-				{ line: 0, col: 0 },
-				{ line: 0, col: 1 },
-				{ line: 1, col: 0 },
-				{ line: 1, col: 1 },
-				{ line: 1, col: 2 },
-				{ line: 1, col: 3 },
-				{ line: 1, col: 4 },
-				{ line: 1, col: 6 },
-				{ line: 1, col: 7 },
-				{ line: 2, col: 0 },
-				{ line: 2, col: 1 },
-			];
-			let i = 0;
-			for (const expectedPos of data) {
-				await ext.gotoChar(editor, undefined, [i]);
-				assert.strictEqual(editor.selections.length, 1, 'too many selections');
-				assert.ok(editor.selection.isEmpty, 'selection is not empty');
-				const actualPos = {
-					line: editor.selection.start.line,
-					col: editor.selection.start.character,
-				};
-				assert.deepStrictEqual(actualPos, expectedPos, `error at position ${i}`);
-				i++;
-			}
-		});
+	for (const isRelative of [false, true]) {
+		for (const filename of ['windows.txt', 'unix.txt']) {
+			test(`gotoChar in ${filename} where isRelative = ${isRelative}`, async () => {
+				const doc = docs.get(filename)!;
+				const editor = await vscode.window.showTextDocument(doc);
+				const data: any[] = [
+					{ line: 0, col: 0 },
+					{ line: 0, col: 1 },
+					{ line: 1, col: 0 },
+					{ line: 1, col: 1 },
+					{ line: 1, col: 2 },
+					{ line: 1, col: 3 },
+					{ line: 1, col: 4 },
+					{ line: 1, col: 6 },
+					{ line: 1, col: 7 },
+					{ line: 2, col: 0 },
+					{ line: 2, col: 1 },
+				];
+				let i = 0;
+				for (const expectedPos of data) {
+					let offset = i;
+					if (isRelative) {
+						const start = Math.floor(offset / 2);
+						offset -= start;
+						await ext.gotoChar(editor, undefined, [{ isRelative: false, value: start }])
+					}
+					await ext.gotoChar(editor, undefined, [{ isRelative, value: offset }]);
+					assert.strictEqual(editor.selections.length, 1, 'too many selections');
+					assert.ok(editor.selection.isEmpty, 'selection is not empty');
+					const actualPos = {
+						line: editor.selection.start.line,
+						col: editor.selection.start.character,
+					};
+					assert.deepStrictEqual(actualPos, expectedPos, `error at position ${i}`);
+					i++;
+				}
+			});
+		}
 	}
 
-	async function testGotoByte(filename: string, expectedRanges: any[]) {
+	async function testGotoByte(filename: string, isRelative: boolean, lineStarts: number[], expectedRanges: any[]) {
+		lineStarts.sort();
+		lineStarts.reverse();
 		const doc = docs.get(filename)!;
 		const editor = await vscode.window.showTextDocument(doc);
 		let i = 0;
 		for (let expectedRange of expectedRanges) {
-			await ext.gotoByte(editor, undefined, [i]);
+			let offset = i;
+			if (isRelative) {
+				const start = lineStarts.find(x => x <= offset)!;
+				offset -= start;
+				await ext.gotoByte(editor, undefined, [{ isRelative: false, value: start }])
+			}
+			await ext.gotoByte(editor, undefined, [{ isRelative, value: offset }]);
 			assert.strictEqual(editor.selections.length, 1, 'too many selections');
 			expectedRange = {
 				...{
@@ -257,49 +273,51 @@ suite('Extension Test Suite', () => {
 		}
 	}
 
-	test('gotoByte in windows.txt', async () => {
-		await testGotoByte('windows.txt', [
-			{ line1: 0, col1: 0 }, // a
-			{ line1: 0, col1: 1 }, // CR
-			{ line1: 0, col1: 1, line2: 1, col2: 0 }, // LF
-			{ line1: 1, col1: 0 }, // b
-			{ line1: 1, col1: 1 }, // ESC
-			{ line1: 1, col1: 2 }, // æ
-			{ line1: 1, col1: 2, col2: 3 }, // æ
-			{ line1: 1, col1: 3 }, // Ω
-			{ line1: 1, col1: 3, col2: 4 }, // Ω
-			{ line1: 1, col1: 4 }, // 😀
-			{ line1: 1, col1: 4, col2: 6 }, // 😀
-			{ line1: 1, col1: 4, col2: 6 }, // 😀
-			{ line1: 1, col1: 4, col2: 6 }, // 😀
-			{ line1: 1, col1: 6 }, // x
-			{ line1: 1, col1: 7 }, // CR
-			{ line1: 1, col1: 7, line2: 2, col2: 0 }, // LF
-			{ line1: 2, col1: 0 }, // c
-			{ line1: 2, col1: 1 }, // EOF
-		]);
-	});
+	for (const isRelative of [false, true]) {
+		test(`gotoByte in windows.txt where isRelative = ${isRelative}`, async () => {
+			await testGotoByte('windows.txt', isRelative, [0, 3, 15], [
+				{ line1: 0, col1: 0 }, // a
+				{ line1: 0, col1: 1 }, // CR
+				{ line1: 0, col1: 1, line2: 1, col2: 0 }, // LF
+				{ line1: 1, col1: 0 }, // b
+				{ line1: 1, col1: 1 }, // ESC
+				{ line1: 1, col1: 2 }, // æ
+				{ line1: 1, col1: 2, col2: 3 }, // æ
+				{ line1: 1, col1: 3 }, // Ω
+				{ line1: 1, col1: 3, col2: 4 }, // Ω
+				{ line1: 1, col1: 4 }, // 😀
+				{ line1: 1, col1: 4, col2: 6 }, // 😀
+				{ line1: 1, col1: 4, col2: 6 }, // 😀
+				{ line1: 1, col1: 4, col2: 6 }, // 😀
+				{ line1: 1, col1: 6 }, // x
+				{ line1: 1, col1: 7 }, // CR
+				{ line1: 1, col1: 7, line2: 2, col2: 0 }, // LF
+				{ line1: 2, col1: 0 }, // c
+				{ line1: 2, col1: 1 }, // EOF
+			]);
+		});
 
-	test('gotoByte in unix.txt', async () => {
-		await testGotoByte('unix.txt', [
-			{ line1: 0, col1: 0 }, // a
-			{ line1: 0, col1: 1 }, // LF
-			{ line1: 1, col1: 0 }, // b
-			{ line1: 1, col1: 1 }, // ESC
-			{ line1: 1, col1: 2 }, // æ
-			{ line1: 1, col1: 2, col2: 3 }, // æ
-			{ line1: 1, col1: 3 }, // Ω
-			{ line1: 1, col1: 3, col2: 4 }, // Ω
-			{ line1: 1, col1: 4 }, // 😀
-			{ line1: 1, col1: 4, col2: 6 }, // 😀
-			{ line1: 1, col1: 4, col2: 6 }, // 😀
-			{ line1: 1, col1: 4, col2: 6 }, // 😀
-			{ line1: 1, col1: 6 }, // x
-			{ line1: 1, col1: 7 }, // LF
-			{ line1: 2, col1: 0 }, // c
-			{ line1: 2, col1: 1 }, // EOF
-		]);
-	});
+		test(`gotoByte in unix.txt where isRelative = ${isRelative}`, async () => {
+			await testGotoByte('unix.txt', isRelative, [0, 2, 13], [
+				{ line1: 0, col1: 0 }, // a
+				{ line1: 0, col1: 1 }, // LF
+				{ line1: 1, col1: 0 }, // b
+				{ line1: 1, col1: 1 }, // ESC
+				{ line1: 1, col1: 2 }, // æ
+				{ line1: 1, col1: 2, col2: 3 }, // æ
+				{ line1: 1, col1: 3 }, // Ω
+				{ line1: 1, col1: 3, col2: 4 }, // Ω
+				{ line1: 1, col1: 4 }, // 😀
+				{ line1: 1, col1: 4, col2: 6 }, // 😀
+				{ line1: 1, col1: 4, col2: 6 }, // 😀
+				{ line1: 1, col1: 4, col2: 6 }, // 😀
+				{ line1: 1, col1: 6 }, // x
+				{ line1: 1, col1: 7 }, // LF
+				{ line1: 2, col1: 0 }, // c
+				{ line1: 2, col1: 1 }, // EOF
+			]);
+		});
+	}
 
 	function testIterLineStartPositions(filename: string, expectedLines: any[]) {
 		const doc = docs.get(filename)!;
@@ -555,5 +573,22 @@ suite('Extension Test Suite', () => {
 				codePoint: undefined,
 			},
 		]);
+	});
+
+	test('parseOffset', () => {
+		assert.deepStrictEqual(ext.parseOffset('10'), { isRelative: false, value: 10 });
+		assert.deepStrictEqual(ext.parseOffset('0x0a'), { isRelative: false, value: 10 });
+		assert.deepStrictEqual(ext.parseOffset('+10'), { isRelative: true, value: 10 });
+		assert.deepStrictEqual(ext.parseOffset('+0x0a'), { isRelative: true, value: 10 });
+		assert.deepStrictEqual(ext.parseOffset('-10'), { isRelative: true, value: -10 });
+		assert.deepStrictEqual(ext.parseOffset('-0x0a'), { isRelative: true, value: -10 });
+	});
+
+	test('parseCodePoint', () => {
+		assert.strictEqual(ext.parseCodePoint('10'), 10);
+		assert.strictEqual(ext.parseCodePoint('0x0a'), 10);
+		assert.strictEqual(ext.parseCodePoint('\\u0a'), 10);
+		assert.strictEqual(ext.parseCodePoint('\\x0a'), 10);
+		assert.strictEqual(ext.parseCodePoint('U+0a'), 10);
 	});
 });

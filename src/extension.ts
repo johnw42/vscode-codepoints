@@ -41,10 +41,10 @@ function getDocText(doc: vscode.TextDocument, range: vscode.Range, maxLength?: n
 }
 
 // A pair of a character and byte offset in a file.
-type Offsets = { char: number, byte: number };
+type CharAndByteOffsets = { char: number, byte: number };
 
 // Gets the offsets correspond to a position in a text document.
-function getOffsets(doc: vscode.TextDocument, pos: vscode.Position): Offsets {
+function getOffsets(doc: vscode.TextDocument, pos: vscode.Position): CharAndByteOffsets {
     const text = getDocText(doc, new vscode.Range(new vscode.Position(0, 0), pos));
     const eolAdjustment = doc.eol === vscode.EndOfLine.CRLF ? pos.line : 0;
     return {
@@ -104,7 +104,7 @@ export type CharDetails = {
 
 // Gets an iterator over the character details of `text`, assuming an EOL style
 // of `eol` and starting offsets specified by `startOffsets`.
-export function* iterCharDetails(text: LFText, eol: vscode.EndOfLine, startOffsets: Offsets): Iterable<CharDetails> {
+export function* iterCharDetails(text: LFText, eol: vscode.EndOfLine, startOffsets: CharAndByteOffsets): Iterable<CharDetails> {
     let { char: charOffset, byte: byteOffset } = startOffsets;
     for (const logicalChar of text) {
         const physicalChars = logicalChar === '\n' && eol === vscode.EndOfLine.CRLF
@@ -256,9 +256,15 @@ function makeValidator(parseFn: (input: string) => any, message: string): (input
     return input => parseFn(input) === null ? message : null;
 }
 
-function parseOffset(input: string): number | null {
-    if (/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(input)) {
-        return Number.parseInt(input);
+type ParsedOffset = { isRelative: boolean, value: number };
+
+export function parseOffset(input: string): ParsedOffset | null {
+    let match;
+    if (match = /^([\+\-]?)(?:0x[0-9a-f]+|[0-9]+)$/i.exec(input)) {
+        return {
+            isRelative: match[1] !== '',
+            value: Number.parseInt(input),
+        };
     } else {
         return null;
     }
@@ -268,8 +274,8 @@ const validateOffset = makeValidator(parseOffset, 'Please enter a decimal or hex
 
 // Command to go to a specific byte offset.
 export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
-    let [targetOffset] = args;
-    if (typeof targetOffset !== 'number') {
+    let targetOffset: ParsedOffset | undefined = args[0];
+    if (!targetOffset) {
         const input = await vscode.window.showInputBox({
             prompt: 'Enter UTF-8 byte offset.',
             validateInput: validateOffset,
@@ -277,15 +283,17 @@ export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEdi
         targetOffset = parseOffset(input!)!;
     }
 
+    const absoluteOffset = targetOffset.value +
+        (targetOffset.isRelative ? getOffsets(editor.document, editor.selection.active).byte : 0);
     const doc = editor.document;
     for (const lineInfo of peeking(iterLineStartPositions(doc, { omitCharOffset: true }))) {
         let prevPos = null;
-        if (lineInfo.next !== undefined || lineInfo.next!.byteOffset > targetOffset) {
+        if (lineInfo.next !== undefined || lineInfo.next!.byteOffset > absoluteOffset) {
             for (const charInfo of iterCharPositions(doc, lineInfo.current)) {
-                if (charInfo.byteOffset === targetOffset) {
+                if (charInfo.byteOffset === absoluteOffset) {
                     editor.selection = new vscode.Selection(charInfo.pos, charInfo.pos);
                     return;
-                } else if (charInfo.byteOffset > targetOffset) {
+                } else if (charInfo.byteOffset > absoluteOffset) {
                     editor.selection = new vscode.Selection(prevPos || charInfo.pos, charInfo.pos);
                     return;
                 }
@@ -297,8 +305,8 @@ export async function gotoByte(editor: vscode.TextEditor, _edit?: vscode.TextEdi
 
 // Command to go to a specific character offset.
 export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEditorEdit, args: any[] = []) {
-    let [targetOffset] = args;
-    if (typeof targetOffset !== 'number') {
+    let targetOffset: ParsedOffset | undefined = args[0];
+    if (!targetOffset) {
         const input = await vscode.window.showInputBox({
             prompt: 'Enter character offset.',
             validateInput: validateOffset,
@@ -307,11 +315,13 @@ export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEdi
     }
 
     const doc = editor.document;
+    const absoluteOffset = targetOffset.value +
+        (targetOffset.isRelative ? getOffsets(doc, editor.selection.active).char : 0);
     for (const lineInfo of peeking(iterLineStartPositions(doc, { omitByteOffset: true }))) {
         let prevPos = null;
-        if (lineInfo.next !== undefined || lineInfo.next!.charOffset > targetOffset) {
+        if (lineInfo.next !== undefined || lineInfo.next!.charOffset > absoluteOffset) {
             for (const charInfo of iterCharPositions(doc, lineInfo.current)) {
-                if (charInfo.charOffset >= targetOffset) {
+                if (charInfo.charOffset >= absoluteOffset) {
                     editor.selection = new vscode.Selection(charInfo.pos, charInfo.pos);
                     return;
                 }
@@ -321,7 +331,7 @@ export async function gotoChar(editor: vscode.TextEditor, _edit?: vscode.TextEdi
     }
 }
 
-function parseCodePoint(input: string): number | null {
+export function parseCodePoint(input: string): number | null {
     let match;
     if (/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(input)) {
         return Number.parseInt(input);
